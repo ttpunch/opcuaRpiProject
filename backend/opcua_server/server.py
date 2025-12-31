@@ -14,7 +14,7 @@ _logger = logging.getLogger(__name__)
 
 class OPCUAServer:
     def __init__(self, endpoint="opc.tcp://0.0.0.0:4840/", name="RPi OPC UA Server"):
-        self.server = Server()
+        self.server = None # Will be initialized in setup()
         self.endpoint = endpoint
         self.name = name
         self.namespace = None
@@ -24,8 +24,15 @@ class OPCUAServer:
         self.data_sources = {} # node_id -> DataSource instance
         self.polling_task = None
         self.root_folder = None
+        self.last_error = None
+        import uuid
+        self.instance_id = str(uuid.uuid4())[:8]
+        _logger.info(f"OPCUAServer initialized with ID: {self.instance_id}")
 
     async def setup(self):
+        # Create a fresh server object to avoid "remaining nodes" error on restart
+        self.server = Server()
+        
         # Load global settings from Database
         db = SessionLocal()
         try:

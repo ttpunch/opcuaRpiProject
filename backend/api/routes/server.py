@@ -17,24 +17,35 @@ async def get_server_status(current_user = Depends(get_current_user)):
     connections = []
     if opcua_server.is_running and opcua_server.server:
         try:
-            sessions = opcua_server.server.iserver.isession_manager.get_sessions()
+            # Try multiple ways to get sessions for compatibility
+            sessions = []
+            if hasattr(opcua_server.server, "get_sessions"):
+                sessions = opcua_server.server.get_sessions()
+            elif hasattr(opcua_server.server.iserver, "session_manager"):
+                sessions = opcua_server.server.iserver.session_manager.get_sessions()
+            elif hasattr(opcua_server.server.iserver, "isession_manager"):
+                sessions = opcua_server.server.iserver.isession_manager.get_sessions()
+                
             for session in sessions:
                 # Basic info from session
-                info = session.get_session_info()
-                connections.append({
-                    "username": info.session_name or "Anonymous",
-                    "ip": info.client_address or "Unknown",
-                    "connected_since": info.start_time.strftime("%Y-%m-%d %H:%M:%S") if info.start_time else "N/A"
-                })
+                info = getattr(session, "get_session_info", lambda: None)()
+                if info:
+                    connections.append({
+                        "username": info.session_name or "Anonymous",
+                        "ip": info.client_address or "Unknown",
+                        "connected_since": info.start_time.strftime("%Y-%m-%d %H:%M:%S") if info.start_time else "N/A"
+                    })
         except Exception as e:
-            print(f"Error fetching sessions: {e}")
+            print(f"Error fetching sessions in status API: {e}")
 
     return {
         "state": "Running" if opcua_server.is_running else "Stopped",
         "endpoint": opcua_server.endpoint,
         "uptime": "N/A", # Could be tracked better if needed
         "active_connections": len(connections),
-        "connections": connections
+        "connections": connections,
+        "last_error": getattr(opcua_server, "last_error", None),
+        "instance_id": getattr(opcua_server, "instance_id", "Unknown")
     }
 
 @router.post("/start")
