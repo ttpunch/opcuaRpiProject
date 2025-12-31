@@ -22,6 +22,11 @@ const MainLayout = () => {
         { name: 'Settings', path: '/settings', icon: Settings },
     ];
 
+    const handleLogout = () => {
+        localStorage.removeItem('opcua_token');
+        window.location.href = '/login';
+    };
+
     return (
         <div className="flex h-screen bg-surface-50">
             {/* Sidebar */}
@@ -55,7 +60,10 @@ const MainLayout = () => {
                 </nav>
 
                 <div className="p-4 border-t border-surface-200">
-                    <button className="flex items-center gap-3 w-full px-4 py-3 text-surface-600 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all duration-200">
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-surface-600 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all duration-200"
+                    >
                         <LogOut size={20} />
                         <span>Logout</span>
                     </button>

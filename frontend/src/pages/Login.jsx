@@ -1,14 +1,28 @@
-import React, { useState } from 'react';
-import { Cpu, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Cpu, Lock, User, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 import api from '../api/client';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const usernameRef = useRef(null);
+
+    useEffect(() => {
+        // Auto-focus username field on mount
+        if (usernameRef.current) {
+            usernameRef.current.focus();
+        }
+
+        // Redirect if already logged in
+        if (localStorage.getItem('opcua_token')) {
+            navigate('/');
+        }
+    }, [navigate]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -16,7 +30,6 @@ const Login = () => {
         setError('');
 
         try {
-            // FastAPI OAuth2PasswordRequestForm expects x-www-form-urlencoded
             const formData = new URLSearchParams();
             formData.append('username', username);
             formData.append('password', password);
@@ -64,10 +77,14 @@ const Login = () => {
                             <div className="relative group">
                                 <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400 group-focus-within:text-primary-600 transition-colors" />
                                 <input
+                                    ref={usernameRef}
                                     type="text"
                                     placeholder="admin"
                                     value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
+                                    onChange={(e) => {
+                                        setUsername(e.target.value);
+                                        if (error) setError('');
+                                    }}
                                     required
                                     className="w-full pl-12 pr-4 py-4 bg-surface-50 border-2 border-surface-50 rounded-2xl focus:bg-white focus:border-primary-500 transition-all outline-none"
                                 />
@@ -79,13 +96,23 @@ const Login = () => {
                             <div className="relative group">
                                 <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400 group-focus-within:text-primary-600 transition-colors" />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     placeholder="••••••••"
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        if (error) setError('');
+                                    }}
                                     required
-                                    className="w-full pl-12 pr-4 py-4 bg-surface-50 border-2 border-surface-50 rounded-2xl focus:bg-white focus:border-primary-500 transition-all outline-none"
+                                    className="w-full pl-12 pr-12 py-4 bg-surface-50 border-2 border-surface-50 rounded-2xl focus:bg-white focus:border-primary-500 transition-all outline-none"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
                         </div>
                     </div>
