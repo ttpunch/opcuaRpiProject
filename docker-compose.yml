@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: ./
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+      - "4840:4840"
+    volumes:
+      - ./backend:/app/backend
+      - ./backend/database:/app/backend/database
+      - ./config.json:/app/config.json
+      - ./backend/certs:/app/certs
+      - ./scripts:/app/scripts
+    privileged: true
+    devices:
+      - "/dev/gpiomem:/dev/gpiomem"
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./certs:/etc/nginx/ssl
+    depends_on:
+      - backend
+    restart: always

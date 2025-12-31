@@ -1,0 +1,17 @@
+[Unit]
+Description=Raspberry Pi OPC UA Server
+After=network.target
+
+[Service]
+Type=simple
+User=opcua
+Group=opcua
+WorkingDirectory=/opt/pi-opcua-server
+ExecStart=/opt/pi-opcua-server/venv/bin/python -m backend.opcua_server.server
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
