@@ -124,7 +124,7 @@ const HealthStatus = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="card lg:col-span-1">
-                    <h3 className="font-bold text-lg mb-6">Device Uptime</h3>
+                    <h3 className="font-bold text-lg mb-6">Device Status</h3>
                     <div className="space-y-6">
                         <MetricItem
                             label="System Uptime"
@@ -132,25 +132,39 @@ const HealthStatus = () => {
                             icon={Clock}
                             color="text-blue-600"
                         />
-                        <MetricItem label="Load Average" value={metrics?.load_avg?.join(', ') || '--'} icon={Activity} color="text-emerald-600" />
-                        <MetricItem label="Process Count" value={metrics?.process_count || '--'} icon={Server} color="text-purple-600" />
+                        <MetricItem label="CPU Cores" value={metrics?.cpu_count || '--'} icon={Activity} color="text-emerald-600" />
+                        <MetricItem label="System Model" value={metrics?.model || 'Raspberry Pi'} icon={Server} color="text-purple-600" />
                     </div>
                 </div>
 
                 <div className="card lg:col-span-2">
-                    <h3 className="font-bold text-lg mb-6">Hardware Info</h3>
-                    <div className="grid grid-cols-2 gap-8">
-                        <div className="space-y-1">
-                            <p className="text-surface-400 text-sm">Processor</p>
-                            <p className="font-bold">ARM Cortex-A72 (RPi 4)</p>
+                    <h3 className="font-bold text-lg mb-6">Hardware Specifications</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <p className="text-surface-400 text-sm">System Model</p>
+                                <p className="font-bold text-lg">{metrics?.model || 'Raspberry Pi'}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-surface-400 text-sm">Total Memory</p>
+                                <p className="font-bold text-lg">{metrics?.memory_total_gb ? `${metrics.memory_total_gb} GB` : '--'}</p>
+                            </div>
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-surface-400 text-sm">Memory</p>
-                            <p className="font-bold">4GB LPDDR4</p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-surface-400 text-sm">Storage (Root)</p>
-                            <p className="font-bold">{metrics?.disk_percent || '--'}% Used</p>
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <p className="text-surface-400 text-sm">Total Storage (Root)</p>
+                                <p className="font-bold text-lg">{metrics?.disk_total_gb ? `${metrics.disk_total_gb} GB` : '--'}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-surface-400 text-sm">Storage Usage</p>
+                                <div className="w-full bg-surface-100 h-2 rounded-full mt-2">
+                                    <div
+                                        className="bg-primary-600 h-full rounded-full transition-all duration-1000"
+                                        style={{ width: `${metrics?.disk_percent || 0}%` }}
+                                    />
+                                </div>
+                                <p className="text-xs text-surface-400 mt-1">{metrics?.disk_percent || 0}% used</p>
+                            </div>
                         </div>
                     </div>
                 </div>

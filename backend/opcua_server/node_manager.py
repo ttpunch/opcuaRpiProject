@@ -53,7 +53,16 @@ class NodeManager:
             access_level = {ua.AccessLevel.CurrentRead}
 
         # Create the variable
-        requested_node_id = ua.NodeId(node_id_str, self.idx)
+        try:
+            # If the node_id_str looks like a full NodeId (e.g. "ns=2;s=MyNode"), parse it
+            if ";" in str(node_id_str) and "=" in str(node_id_str):
+                requested_node_id = ua.NodeId.from_string(node_id_str)
+            else:
+                # Otherwise, treat it as a string identifier in our current namespace
+                requested_node_id = ua.NodeId(node_id_str, self.idx)
+        except Exception as e:
+            _logger.warning(f"Failed to parse NodeID string '{node_id_str}', falling back to default: {e}")
+            requested_node_id = ua.NodeId(node_id_str, self.idx)
         
         node = await parent_node.add_variable(requested_node_id, name, initial_value, varianttype=ua_type)
         is_writable = ua.AccessLevel.CurrentWrite in access_level

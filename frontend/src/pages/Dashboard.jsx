@@ -44,6 +44,16 @@ const Dashboard = () => {
         refetchInterval: 2000
     });
 
+    // Fetch Security Events (Audit Logs)
+    const { data: securityEvents } = useQuery({
+        queryKey: ['dashboard-security-events'],
+        queryFn: async () => {
+            const resp = await api.get('/security/audit-logs');
+            return resp.data.slice(0, 5); // Just show recent 5
+        },
+        refetchInterval: 10000
+    });
+
     const gpioNodes = nodeValues?.filter(n => n.type === 'gpio') || [];
 
     const stats = [
@@ -133,7 +143,7 @@ const Dashboard = () => {
                 <div className="lg:col-span-2 card">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold">Active Connections</h2>
-                        <button className="text-primary-600 hover:text-primary-700 font-medium text-sm">View All</button>
+                        <a href="/settings" className="text-primary-600 hover:text-primary-700 font-medium text-sm">Manage Settings</a>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
@@ -141,7 +151,7 @@ const Dashboard = () => {
                                 <tr className="text-surface-400 text-sm font-medium border-b border-surface-100">
                                     <th className="pb-4">Client Name</th>
                                     <th className="pb-4">Endpoint</th>
-                                    <th className="pb-4">Uptime</th>
+                                    <th className="pb-4">Connected Since</th>
                                     <th className="pb-4">Status</th>
                                 </tr>
                             </thead>
@@ -159,7 +169,7 @@ const Dashboard = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="4" className="py-8 text-center text-surface-400">No active connections found</td>
+                                        <td colSpan="4" className="py-8 text-center text-surface-400">No active sessions found</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -171,26 +181,35 @@ const Dashboard = () => {
                 <div className="card">
                     <h2 className="text-xl font-bold mb-6">Security Events</h2>
                     <div className="space-y-6">
-                        {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="flex gap-4 items-start">
-                                <div className={cn(
-                                    "p-2 rounded-lg",
-                                    i === 2 ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
-                                )}>
-                                    {i === 2 ? <ShieldAlert size={18} /> : <Terminal size={18} />}
+                        {securityEvents?.length > 0 ? (
+                            securityEvents.map((event, i) => (
+                                <div key={i} className="flex gap-4 items-start">
+                                    <div className={cn(
+                                        "p-2 rounded-lg",
+                                        !event.success ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
+                                    )}>
+                                        {!event.success ? <ShieldAlert size={18} /> : <Terminal size={18} />}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium text-surface-900 truncate">
+                                            {event.event_type} {event.success ? "Success" : "Failed"}
+                                        </p>
+                                        <p className="text-xs text-surface-400 mt-1">
+                                            {new Date(event.timestamp).toLocaleTimeString()} • {event.user || 'system'}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm font-medium text-surface-900">
-                                        {i === 2 ? "Invalid login attempt" : "Node Temp1 value changed"}
-                                    </p>
-                                    <p className="text-xs text-surface-400 mt-1">10:45 AM • 127.0.0.1</p>
-                                </div>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            <p className="text-center text-surface-400 text-sm italic py-4">No recent events</p>
+                        )}
                     </div>
-                    <button className="w-full mt-8 py-3 border border-surface-200 rounded-xl text-surface-600 font-medium hover:bg-surface-50 transition-colors">
-                        Audit Logs
-                    </button>
+                    <a
+                        href="/security"
+                        className="block text-center w-full mt-8 py-3 border border-surface-200 rounded-xl text-surface-600 font-medium hover:bg-surface-50 transition-colors"
+                    >
+                        View All logs
+                    </a>
                 </div>
             </div>
         </div>

@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 _logger = logging.getLogger(__name__)
 
 class OPCUAServer:
-    def __init__(self, endpoint="opc.tcp://0.0.0.0:4840/freeopcua/server/", name="RPi OPC UA Server"):
+    def __init__(self, endpoint="opc.tcp://0.0.0.0:4840/", name="RPi OPC UA Server"):
         self.server = Server()
         self.endpoint = endpoint
         self.name = name
@@ -62,7 +62,7 @@ class OPCUAServer:
 
         # If user explicitly set an endpoint in DB, we might want to respect that logic,
         # but usually constructing it dynamically is safer for Pi environments.
-        self.endpoint = f"opc.tcp://{report_ip}:{port}/freeopcua/server/"
+        self.endpoint = f"opc.tcp://{report_ip}:{port}/"
         _logger.info(f"Setting Endpoint URL to: {self.endpoint}")
         
         # We need to explicitly tell the server to report this specific endpoint

@@ -118,33 +118,37 @@ const ServerSettings = () => {
                         <SettingField label="Server Name" description="Identify this server in the network">
                             <input
                                 type="text"
-                                value={formData.server_name || 'RPi OPC UA Server'}
+                                value={formData.server_name || ''}
                                 onChange={(e) => handleInputChange('server_name', e.target.value)}
                                 className="input-field"
+                                placeholder="e.g. My RPi Server"
                             />
                         </SettingField>
                         <SettingField label="Endpoint Port" description="Standard OPC UA port is 4840">
                             <input
                                 type="number"
-                                value={formData.port || 4840}
-                                onChange={(e) => handleInputChange('port', parseInt(e.target.value))}
+                                value={formData.port || ''}
+                                onChange={(e) => handleInputChange('port', e.target.value)}
                                 className="input-field"
+                                placeholder="4840"
                             />
                         </SettingField>
                         <SettingField label="Namespace URI" description="External identification URI">
                             <input
                                 type="text"
-                                value={formData.namespace_uri || 'http://raspberry.opcua.server'}
+                                value={formData.namespace_uri || ''}
                                 onChange={(e) => handleInputChange('namespace_uri', e.target.value)}
                                 className="input-field font-mono text-xs"
+                                placeholder="http://example.org"
                             />
                         </SettingField>
                         <SettingField label="Polling Rate (ms)" description="Global default refresh rate">
                             <input
                                 type="number"
-                                value={formData.polling_rate || 1000}
-                                onChange={(e) => handleInputChange('polling_rate', parseInt(e.target.value))}
+                                value={formData.polling_rate || ''}
+                                onChange={(e) => handleInputChange('polling_rate', e.target.value)}
                                 className="input-field"
+                                placeholder="1000"
                             />
                         </SettingField>
                     </div>
@@ -156,30 +160,55 @@ const ServerSettings = () => {
                         <Bell size={20} className="text-primary-600" />
                         <h2 className="text-xl font-bold">Alerts & Notifications</h2>
                     </div>
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between py-2 border-b border-surface-50">
-                            <div>
-                                <p className="font-semibold">CPU High Threshold</p>
-                                <p className="text-xs text-surface-400">Alert when CPU usage exceeds 90%</p>
+                    <div className="space-y-8">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2 border-b border-surface-50 pb-6">
+                            <div className="flex-1">
+                                <p className="font-semibold text-surface-900">CPU Usage Alert</p>
+                                <p className="text-sm text-surface-500">Notify when CPU usage exceeds threshold</p>
                             </div>
-                            <input
-                                type="checkbox"
-                                checked={formData.alert_cpu === 'true'}
-                                onChange={(e) => handleInputChange('alert_cpu', String(e.target.checked))}
-                                className="w-5 h-5 accent-primary-600"
-                            />
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 bg-surface-50 p-1 px-3 rounded-lg border border-surface-100">
+                                    <span className="text-xs font-bold text-surface-400">Threshold:</span>
+                                    <input
+                                        type="number"
+                                        value={formData.cpu_threshold || '90'}
+                                        onChange={(e) => handleInputChange('cpu_threshold', e.target.value)}
+                                        className="w-12 bg-transparent border-none text-sm font-bold text-primary-600 focus:ring-0 p-0"
+                                    />
+                                    <span className="text-xs font-bold text-surface-400">%</span>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.alert_cpu === 'true'}
+                                    onChange={(e) => handleInputChange('alert_cpu', String(e.target.checked))}
+                                    className="w-6 h-6 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
+                                />
+                            </div>
                         </div>
-                        <div className="flex items-center justify-between py-2 border-b border-surface-50">
-                            <div>
-                                <p className="font-semibold">Certificate Expiry Alert</p>
-                                <p className="text-xs text-surface-400">Notify 30 days before certificate expiration</p>
+
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2">
+                            <div className="flex-1">
+                                <p className="font-semibold text-surface-900">Certificate Expiration Alert</p>
+                                <p className="text-sm text-surface-500">Notify before server certificates expire</p>
                             </div>
-                            <input
-                                type="checkbox"
-                                checked={formData.alert_cert === 'true'}
-                                onChange={(e) => handleInputChange('alert_cert', String(e.target.checked))}
-                                className="w-5 h-5 accent-primary-600"
-                            />
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 bg-surface-50 p-1 px-3 rounded-lg border border-surface-100">
+                                    <span className="text-xs font-bold text-surface-400">Warning:</span>
+                                    <input
+                                        type="number"
+                                        value={formData.cert_expiry_days || '30'}
+                                        onChange={(e) => handleInputChange('cert_expiry_days', e.target.value)}
+                                        className="w-12 bg-transparent border-none text-sm font-bold text-primary-600 focus:ring-0 p-0"
+                                    />
+                                    <span className="text-xs font-bold text-surface-400">Days</span>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.alert_cert === 'true'}
+                                    onChange={(e) => handleInputChange('alert_cert', String(e.target.checked))}
+                                    className="w-6 h-6 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

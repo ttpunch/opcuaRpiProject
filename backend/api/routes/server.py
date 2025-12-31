@@ -13,11 +13,28 @@ router = APIRouter()
 
 @router.get("/status")
 async def get_server_status(current_user = Depends(get_current_user)):
+    # Get active sessions from the asyncua server
+    connections = []
+    if opcua_server.is_running and opcua_server.server:
+        try:
+            sessions = opcua_server.server.iserver.isession_manager.get_sessions()
+            for session in sessions:
+                # Basic info from session
+                info = session.get_session_info()
+                connections.append({
+                    "username": info.session_name or "Anonymous",
+                    "ip": info.client_address or "Unknown",
+                    "connected_since": info.start_time.strftime("%Y-%m-%d %H:%M:%S") if info.start_time else "N/A"
+                })
+        except Exception as e:
+            print(f"Error fetching sessions: {e}")
+
     return {
         "state": "Running" if opcua_server.is_running else "Stopped",
         "endpoint": opcua_server.endpoint,
-        "uptime": "N/A", # Could be tracked in OPCUAServer
-        "active_connections": 0 # TODO: Implement real session counting
+        "uptime": "N/A", # Could be tracked better if needed
+        "active_connections": len(connections),
+        "connections": connections
     }
 
 @router.post("/start")
@@ -41,8 +58,22 @@ async def restart_server(current_user = Depends(get_current_user)):
 
 @router.get("/settings")
 async def get_settings(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    settings = db.query(ServerSetting).all()
-    return {s.key: s.value for s in settings}
+    db_settings = {s.key: s.value for s in db.query(ServerSetting).all()}
+    
+    # Define default values
+    defaults = {
+        "server_name": "RPi OPC UA Server",
+        "port": "4840",
+        "namespace_uri": "http://raspberry.opcua.server",
+        "polling_rate": "1000",
+        "alert_cpu": "false",
+        "cpu_threshold": "90",
+        "alert_cert": "false",
+        "cert_expiry_days": "30"
+    }
+    
+    # Merge defaults with db values
+    return {**defaults, **db_settings}
 
 @router.put("/settings")
 async def update_settings(settings: dict, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
