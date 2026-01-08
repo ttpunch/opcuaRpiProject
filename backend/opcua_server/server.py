@@ -5,6 +5,7 @@ from asyncua.common.methods import uamethod
 
 from .security import SecurityManager
 from .node_manager import NodeManager
+from .user_manager import DBUserManager
 from .data_sources import SourceFactory
 from ..database.db import SessionLocal
 from ..database.models import Node
@@ -21,6 +22,7 @@ class OPCUAServer:
         self.is_running = False
         self.security_manager = SecurityManager()
         self.node_manager = None
+        self.user_manager = None
         self.data_sources = {} # node_id -> DataSource instance
         self.polling_task = None
         self.root_folder = None
@@ -108,6 +110,48 @@ class OPCUAServer:
             ua.SecurityPolicyType.Basic256Sha256_SignAndEncrypt,
             ua.SecurityPolicyType.Basic256Sha256_Sign
         ])
+
+        # Configure Identity Tokens based on allow_anonymous
+        db = SessionLocal()
+        try:
+            from ..database.models import ServerSetting
+            allow_anon_setting = db.query(ServerSetting).filter(ServerSetting.key == "allow_anonymous").first()
+            allow_anon = allow_anon_setting.value.lower() == "true" if allow_anon_setting else False # Default to False
+            
+            # Explicitly set allowed identity tokens
+            if not allow_anon:
+                # Only allow Username tokens
+                self.server.set_identity_tokens([ua.UserNameIdentityToken])
+                _logger.info("Security: Anonymous login policy REMOVED from server.")
+            else:
+                self.server.set_identity_tokens([ua.AnonymousIdentityToken, ua.UserNameIdentityToken])
+                _logger.info("Security: Anonymous login policy enabled.")
+        finally:
+            db.close()
+
+        # Configure User Manager for Authentication
+        try:
+            self.user_manager = DBUserManager()
+            self.server.set_user_manager(self.user_manager)
+            
+            # Check current settings to log state
+            db = SessionLocal()
+            try:
+                from ..database.models import ServerSetting
+                allow_anon = db.query(ServerSetting).filter(ServerSetting.key == "allow_anonymous").first()
+                dedicated_user = db.query(ServerSetting).filter(ServerSetting.key == "opcua_username").first()
+                
+                anon_val = allow_anon.value if allow_anon else "True (Default)"
+                dedic_val = "Set" if (dedicated_user and dedicated_user.value) else "Not Set"
+                
+                _logger.info(f"OPC UA Auth State: Anonymous={anon_val}, Dedicated Credentials={dedic_val}")
+            finally:
+                db.close()
+
+            _logger.info("Database User Manager configured successfully.")
+        except Exception as e:
+            _logger.error(f"Failed to configure User Manager: {e}")
+            _logger.warning("Server will continue with default (anonymous) access only.")
 
         # Create namespace
         uri = "http://raspberry.opcua.server"
@@ -210,6 +254,7 @@ class OPCUAServer:
 
     async def start(self):
         if self.is_running:
+            _logger.warning("Server is already running. Stop it first.")
             return
         
         try:
@@ -220,24 +265,49 @@ class OPCUAServer:
             traceback.print_exc()
             return
 
-        async with self.server:
-            self.is_running = True
-            _logger.info(f"Server started at {self.endpoint}")
-            # Start polling task
-            self.polling_task = asyncio.create_task(self.poll_nodes())
-            try:
-                while self.is_running:
-                    await asyncio.sleep(1)
-            except asyncio.CancelledError:
-                pass
-            finally:
-                if self.polling_task:
-                    self.polling_task.cancel()
-                    await self.polling_task
+        self.is_running = True
+        try:
+            async with self.server:
+                _logger.info(f"Server started at {self.endpoint}")
+                # Start polling task
+                self.polling_task = asyncio.create_task(self.poll_nodes())
+                try:
+                    while self.is_running:
+                        await asyncio.sleep(0.5)
+                except asyncio.CancelledError:
+                    _logger.info("Server task cancelled.")
+                finally:
+                    if self.polling_task:
+                        self.polling_task.cancel()
+                        try:
+                            await self.polling_task
+                        except asyncio.CancelledError:
+                            pass
+                    _logger.info("Server loop exited.")
+        except Exception as e:
+            _logger.error(f"Error in server runtime: {e}")
+        finally:
+            self.is_running = False
+            _logger.info("OPC UA Server stopped and port released.")
 
     async def stop(self):
         _logger.info("Stopping OPC UA Server...")
+        if not self.is_running:
+            _logger.info("Server is not running.")
+            return
+
         self.is_running = False
+        # Give it a moment to exit the loop and release the port
+        for _ in range(10):
+            await asyncio.sleep(0.5)
+            # Find the task that's running the server loop
+            # Since this class is usually used as a global context, 
+            # we need to be careful. In this codebase, 'start' is often 
+            # called in a task.
+            if not self.is_running:
+                break
+        
+        _logger.info("Stop signal sent and wait completed.")
 
 if __name__ == "__main__":
     server = OPCUAServer()

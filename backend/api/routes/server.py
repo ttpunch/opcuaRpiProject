@@ -30,8 +30,14 @@ async def get_server_status(current_user = Depends(get_current_user)):
                 # Basic info from session
                 info = getattr(session, "get_session_info", lambda: None)()
                 if info:
+                    # session.user usually holds the object we returned in get_user
+                    user_obj = getattr(session, "user", None)
+                    username_val = "Anonymous"
+                    if user_obj and hasattr(user_obj, 'username'):
+                        username_val = user_obj.username
+                    
                     connections.append({
-                        "username": info.session_name or "Anonymous",
+                        "username": username_val,
                         "ip": info.client_address or "Unknown",
                         "connected_since": info.start_time.strftime("%Y-%m-%d %H:%M:%S") if info.start_time else "N/A"
                     })
@@ -63,7 +69,10 @@ async def stop_server(current_user = Depends(get_current_user)):
 
 @router.post("/restart")
 async def restart_server(current_user = Depends(get_current_user)):
+    _logger.info(f"Restart requested by {current_user.username}")
     await opcua_server.stop()
+    # Wait a tiny bit more to be sure
+    await asyncio.sleep(1)
     asyncio.create_task(opcua_server.start())
     return {"message": "Server restart initiated"}
 
@@ -80,7 +89,8 @@ async def get_settings(db: Session = Depends(get_db), current_user = Depends(get
         "alert_cpu": "false",
         "cpu_threshold": "90",
         "alert_cert": "false",
-        "cert_expiry_days": "30"
+        "cert_expiry_days": "30",
+        "allow_anonymous": "false"
     }
     
     # Merge defaults with db values

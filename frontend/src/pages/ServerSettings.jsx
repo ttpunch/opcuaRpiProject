@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, RotateCcw, Monitor, Bell, Cog, Loader2, Power } from 'lucide-react';
+import { Settings, Save, RotateCcw, Monitor, Bell, Cog, Loader2, Power, Eye, EyeOff } from 'lucide-react';
 import api from '../api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const ServerSettings = () => {
     const queryClient = useQueryClient();
     const [formData, setFormData] = useState({});
+    const [showPassword, setShowPassword] = useState(false);
 
     // Fetch Settings
     const { data: settings, isLoading } = useQuery({
@@ -151,6 +152,55 @@ const ServerSettings = () => {
                                 placeholder="1000"
                             />
                         </SettingField>
+                    </div>
+                </div>
+
+                {/* Authentication Settings */}
+                <div className="card">
+                    <div className="flex items-center gap-3 mb-8">
+                        <Monitor size={20} className="text-primary-600" />
+                        <h2 className="text-xl font-bold">Server Authentication</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <SettingField label="Server Access Username" description="Primary credentials for OPC UA clients">
+                            <input
+                                type="text"
+                                value={formData.opcua_username || ''}
+                                onChange={(e) => handleInputChange('opcua_username', e.target.value)}
+                                className="input-field"
+                                placeholder="e.g. opcua_admin"
+                            />
+                        </SettingField>
+                        <SettingField label="Server Access Password" description="Primary password for OPC UA clients">
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    value={formData.opcua_password || ''}
+                                    onChange={(e) => handleInputChange('opcua_password', e.target.value)}
+                                    className="input-field pr-10"
+                                    placeholder="••••••••"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-primary-600 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                        </SettingField>
+                        <div className="flex items-center justify-between col-span-1 md:col-span-2 py-4 border-t border-surface-50 mt-4">
+                            <div>
+                                <p className="font-semibold text-surface-900">Allow Anonymous Login</p>
+                                <p className="text-sm text-surface-500">Permit connection without username/password</p>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={formData.allow_anonymous === 'true'}
+                                onChange={(e) => handleInputChange('allow_anonymous', String(e.target.checked))}
+                                className="w-6 h-6 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
+                            />
+                        </div>
                     </div>
                 </div>
 
