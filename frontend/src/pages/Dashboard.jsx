@@ -11,6 +11,7 @@ import {
 import api from '../api/client';
 import { useQuery } from '@tanstack/react-query';
 import GPIOStatus from '../components/GPIOStatus';
+import AnalogStatus from '../components/AnalogStatus';
 import { cn } from '../utils/cn';
 
 const Dashboard = () => {
@@ -55,6 +56,7 @@ const Dashboard = () => {
     });
 
     const gpioNodes = nodeValues?.filter(n => n.type === 'gpio') || [];
+    const analogNodes = nodeValues?.filter(n => n.type === 'analog') || [];
 
     const stats = [
         {
@@ -116,6 +118,31 @@ const Dashboard = () => {
                     </div>
                 ))}
             </div>
+
+            {/* Analog Signal Monitor */}
+            {analogNodes.length > 0 && (
+                <section className="space-y-4">
+                    <div className="flex items-center gap-2 px-1">
+                        <Activity size={20} className="text-secondary-600" />
+                        <h2 className="text-xl font-bold text-surface-900">Analog Signal Monitor</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {analogNodes.map((node) => (
+                            <AnalogStatus
+                                key={node.node_id}
+                                name={node.name}
+                                value={node.value}
+                                raw_value={node.raw_value}
+                                error={node.error}
+                                scale_enabled={node.scale_enabled}
+                                scale_unit={node.scale_unit}
+                                channel={node.channel}
+                                adc_device={node.adc_device}
+                            />
+                        ))}
+                    </div>
+                </section>
+            )}
 
             {/* GPIO Signal Monitor */}
             {gpioNodes.length > 0 && (
@@ -215,7 +242,5 @@ const Dashboard = () => {
         </div>
     );
 };
-
-
 
 export default Dashboard;

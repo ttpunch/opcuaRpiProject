@@ -308,7 +308,8 @@ const NodeConfig = () => {
                                                         onChange={(e) => handleSourceConfigChange('adc_device', e.target.value)}
                                                     >
                                                         <option value="ads1115">ADS1115 (I2C)</option>
-                                                        <option value="mcp3008">MCP3008 (SPI)</option>
+                                                        <option value="mcp3008">MCP3008 (SPI, 10-bit)</option>
+                                                        <option value="mcp3208">MCP3208 (SPI, 12-bit)</option>
                                                     </select>
                                                 </div>
                                                 <div className="space-y-2">
@@ -321,7 +322,7 @@ const NodeConfig = () => {
                                                         min="0"
                                                         max="7"
                                                     />
-                                                    <p className="text-[10px] text-surface-400">0-3 for ADS1115, 0-7 for MCP3008</p>
+                                                    <p className="text-[10px] text-surface-400">0-3 for ADS1115, 0-7 for MCP3008/MCP3208</p>
                                                 </div>
 
                                                 {/* ADS1115 Specifics */}
@@ -355,8 +356,8 @@ const NodeConfig = () => {
                                                     </>
                                                 )}
 
-                                                {/* MCP3008 Specifics */}
-                                                {formData.source_config?.adc_device === 'mcp3008' && (
+                                                {/* MCP3008/MCP3208 Specifics */}
+                                                {(formData.source_config?.adc_device === 'mcp3008' || formData.source_config?.adc_device === 'mcp3208') && (
                                                     <div className="space-y-2">
                                                         <label className="text-sm font-semibold text-surface-700">CS Pin (SPI CE)</label>
                                                         <input
@@ -368,6 +369,81 @@ const NodeConfig = () => {
                                                         />
                                                     </div>
                                                 )}
+
+                                                {/* Scaling Configuration */}
+                                                <div className="col-span-2 mt-4 p-4 bg-white rounded-lg border border-surface-200">
+                                                    <div className="flex items-center gap-3 mb-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            id="scale_enabled"
+                                                            checked={formData.scale_enabled || false}
+                                                            onChange={(e) => handleInputChange('scale_enabled', e.target.checked)}
+                                                            className="w-4 h-4 accent-primary-600 rounded cursor-pointer"
+                                                        />
+                                                        <label htmlFor="scale_enabled" className="text-sm font-bold text-surface-700 cursor-pointer">
+                                                            Enable Scaling (Convert to Engineering Units)
+                                                        </label>
+                                                    </div>
+
+                                                    {formData.scale_enabled && (
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-semibold text-surface-700">Voltage Min</label>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    value={formData.voltage_min || '0'}
+                                                                    onChange={(e) => handleInputChange('voltage_min', e.target.value)}
+                                                                    className="input-field font-mono"
+                                                                    placeholder="0"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-semibold text-surface-700">Voltage Max</label>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    value={formData.voltage_max || '3.3'}
+                                                                    onChange={(e) => handleInputChange('voltage_max', e.target.value)}
+                                                                    className="input-field font-mono"
+                                                                    placeholder="3.3"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-semibold text-surface-700">Engineering Min</label>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.1"
+                                                                    value={formData.scale_min || ''}
+                                                                    onChange={(e) => handleInputChange('scale_min', e.target.value)}
+                                                                    className="input-field font-mono"
+                                                                    placeholder="e.g., 10"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-semibold text-surface-700">Engineering Max</label>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.1"
+                                                                    value={formData.scale_max || ''}
+                                                                    onChange={(e) => handleInputChange('scale_max', e.target.value)}
+                                                                    className="input-field font-mono"
+                                                                    placeholder="e.g., 100"
+                                                                />
+                                                            </div>
+                                                            <div className="col-span-2 space-y-2">
+                                                                <label className="text-sm font-semibold text-surface-700">Unit</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={formData.scale_unit || ''}
+                                                                    onChange={(e) => handleInputChange('scale_unit', e.target.value)}
+                                                                    className="input-field"
+                                                                    placeholder="e.g., bar, °C, psi, %"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
 

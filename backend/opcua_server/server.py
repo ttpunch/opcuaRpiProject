@@ -32,6 +32,11 @@ class OPCUAServer:
         _logger.info(f"OPCUAServer initialized with ID: {self.instance_id}")
 
     async def setup(self):
+        # Clear previous state for clean restart
+        self.data_sources = {}
+        self.node_manager = None
+        self.root_folder = None
+        
         # Create a fresh server object to avoid "remaining nodes" error on restart
         self.server = Server()
         
@@ -242,12 +247,56 @@ class OPCUAServer:
         await self.add_dynamic_node(node_db)
 
     async def poll_nodes(self):
+        # Cache scaling config to avoid DB queries on every poll cycle
+        scaling_cache = {}
+        cache_refresh_counter = 0
+        
         while self.is_running:
+            # Refresh scaling cache every 30 cycles (~30 seconds)
+            if cache_refresh_counter % 30 == 0:
+                db = SessionLocal()
+                try:
+                    nodes_db = db.query(Node).all()
+                    scaling_cache = {
+                        n.node_id: {
+                            "scale_enabled": n.scale_enabled,
+                            "scale_min": n.scale_min,
+                            "scale_max": n.scale_max,
+                            "voltage_min": n.voltage_min,
+                            "voltage_max": n.voltage_max
+                        } for n in nodes_db
+                    }
+                except Exception as e:
+                    _logger.error(f"Error refreshing scaling cache: {e}")
+                finally:
+                    db.close()
+            cache_refresh_counter += 1
+            
             for node_id, source in self.data_sources.items():
                 try:
-                    value = await source.read()
-                    # _logger.info(f"Polling {node_id}: {value}") 
-                    await self.node_manager.set_node_value(node_id, value)
+                    raw_value = await source.read()
+                    
+                    # Apply scaling if enabled for this node
+                    scaled_value = raw_value
+                    scale_config = scaling_cache.get(node_id)
+                    
+                    if scale_config and scale_config.get("scale_enabled") and raw_value is not None:
+                        try:
+                            v_min = float(scale_config.get("voltage_min") or 0)
+                            v_max = float(scale_config.get("voltage_max") or 3.3)
+                            e_min = float(scale_config.get("scale_min") or 0)
+                            e_max = float(scale_config.get("scale_max") or 100)
+                            
+                            # Apply linear scaling: scaled = (raw - v_min) / (v_max - v_min) * (e_max - e_min) + e_min
+                            if v_max != v_min:
+                                scaled_value = ((raw_value - v_min) / (v_max - v_min)) * (e_max - e_min) + e_min
+                            else:
+                                scaled_value = e_min
+                        except (ValueError, TypeError) as e:
+                            _logger.warning(f"Scaling error for {node_id}: {e}, using raw value")
+                            scaled_value = raw_value
+                    
+                    await self.node_manager.set_node_value(node_id, scaled_value)
                 except Exception as e:
                     _logger.error(f"Error polling node {node_id}: {e}")
             await asyncio.sleep(1)

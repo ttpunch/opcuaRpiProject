@@ -141,9 +141,7 @@ const Login = () => {
                     </button>
                 </form>
 
-                <p className="text-center text-surface-400 text-sm">
-                    &copy; 2024 Industrial Pi Solutions. All rights reserved.
-                </p>
+                {/* Copyright footer removed */}
             </div>
 
             <style dangerouslySetInnerHTML={{

@@ -34,17 +34,17 @@ except (ImportError, RuntimeError, NotImplementedError):
     HAS_ADS1115_LIB = False
     _logger.warning("ADS1115 libraries not found or compatible. ADS sources will be mocked.")
 
-# MCP3008 Imports
+# MCP3008 / MCP3208 Imports (MCP3208 uses same library, just 12-bit resolution)
 try:
     import board
     import busio
     import digitalio
-    import adafruit_mcp3xxx.mcp3008 as MCP
+    import adafruit_mcp3xxx.mcp3008 as MCP3xxx
     from adafruit_mcp3xxx.analog_in import AnalogIn as MCPAnalogIn
-    HAS_MCP3008_LIB = True
+    HAS_MCP3xxx_LIB = True
 except (ImportError, RuntimeError, NotImplementedError):
-    HAS_MCP3008_LIB = False
-    _logger.warning("MCP3008 libraries not found or compatible. MCP sources will be mocked.")
+    HAS_MCP3xxx_LIB = False
+    _logger.warning("MCP3xxx libraries not found or compatible. MCP3008/MCP3208 sources will be mocked.")
 
 class DataSource(abc.ABC):
     def __init__(self, config):
@@ -177,10 +177,10 @@ class ADS1115Source(DataSource):
                 return self.chan.voltage
             except Exception as e:
                 self.error = str(e)
-                return 0.0
+                return None  # Indicates read failure
         else:
-            # Mock behavior: Random voltage between 0-3.3V
-            return random.uniform(0.0, 3.3)
+            # No connection: Return None to indicate error state
+            return None
 
     async def write(self, value):
         _logger.warning("Cannot write to ADC (Read Only)")
@@ -192,30 +192,69 @@ class MCP3008Source(DataSource):
         self.cs_pin = config.get("cs_pin", 8) # CE0 defaults to GPIO 8
         self.mock_val = 0.0
         
-        if HAS_MCP3008_LIB:
+        if HAS_MCP3xxx_LIB:
             try:
                 # Initialize SPI bus
                 self.spi = busio.SPI(clock=board.SCK, MISO=board.MISO, MOSI=board.MOSI)
                 self.cs = digitalio.DigitalInOut(getattr(board, f"D{self.cs_pin}"))
-                self.mcp = MCP.MCP3008(self.spi, self.cs)
-                self.chan = MCPAnalogIn(self.mcp, getattr(MCP, f"P{self.channel}"))
+                self.mcp = MCP3xxx.MCP3008(self.spi, self.cs)
+                self.chan = MCPAnalogIn(self.mcp, getattr(MCP3xxx, f"P{self.channel}"))
                 _logger.info(f"Initialized MCP3008 Channel {self.channel} with CS pin {self.cs_pin}")
             except Exception as e:
                 self.error = str(e)
                 _logger.error(f"Failed to initialize MCP3008: {e}")
         else:
-            self.error = "MCP3008 Library Missing (Mock Mode)"
+            self.error = "MCP3xxx Library Missing (Mock Mode)"
 
     async def read(self):
-        if HAS_MCP3008_LIB and not self.error:
+        if HAS_MCP3xxx_LIB and not self.error:
             try:
                 return self.chan.voltage
             except Exception as e:
                 self.error = str(e)
-                return 0.0
+                return None  # Indicates read failure
         else:
-            # Mock behavior: Random voltage between 0-3.3V
-            return random.uniform(0.0, 3.3)
+            # No connection: Return None to indicate error state
+            return None
+
+    async def write(self, value):
+         _logger.warning("Cannot write to ADC (Read Only)")
+
+class MCP3208Source(DataSource):
+    """Data source for MCP3208 12-bit SPI ADC (8 channels).
+    Note: Uses same library as MCP3008 - the hardware handles 12-bit resolution.
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        self.channel = config.get("channel", 0)
+        self.cs_pin = config.get("cs_pin", 8) # CE0 defaults to GPIO 8
+        self.mock_val = 0.0
+        
+        if HAS_MCP3xxx_LIB:
+            try:
+                # Initialize SPI bus
+                # MCP3208 uses same class as MCP3008 - the chip itself handles 12-bit
+                self.spi = busio.SPI(clock=board.SCK, MISO=board.MISO, MOSI=board.MOSI)
+                self.cs = digitalio.DigitalInOut(getattr(board, f"D{self.cs_pin}"))
+                self.mcp = MCP3xxx.MCP3008(self.spi, self.cs)
+                self.chan = MCPAnalogIn(self.mcp, getattr(MCP3xxx, f"P{self.channel}"))
+                _logger.info(f"Initialized MCP3208 Channel {self.channel} with CS pin {self.cs_pin}")
+            except Exception as e:
+                self.error = str(e)
+                _logger.error(f"Failed to initialize MCP3208: {e}")
+        else:
+            self.error = "MCP3xxx Library Missing (Mock Mode)"
+
+    async def read(self):
+        if HAS_MCP3xxx_LIB and not self.error:
+            try:
+                return self.chan.voltage
+            except Exception as e:
+                self.error = str(e)
+                return None  # Indicates read failure
+        else:
+            # No connection: Return None to indicate error state
+            return None
 
     async def write(self, value):
          _logger.warning("Cannot write to ADC (Read Only)")
@@ -235,5 +274,16 @@ class SourceFactory:
             return ADS1115Source(config)
         elif stype == "mcp3008":
             return MCP3008Source(config)
+        elif stype == "mcp3208":
+            return MCP3208Source(config)
+        elif stype == "analog":
+            # Dispatcher for generic 'analog' type from frontend
+            adc_device = config.get("adc_device", "ads1115")
+            if adc_device == "mcp3008":
+                return MCP3008Source(config)
+            elif adc_device == "mcp3208":
+                return MCP3208Source(config)
+            else:  # Default to ADS1115
+                return ADS1115Source(config)
         else:
             raise ValueError(f"Unknown source type: {stype}")

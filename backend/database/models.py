@@ -33,6 +33,8 @@ class SourceType(enum.Enum):
     SIMULATION = "simulation"
     ADS1115 = "ads1115"
     MCP3008 = "mcp3008"
+    MCP3208 = "mcp3208"
+    ANALOG = "analog"
 
 class Node(Base):
     __tablename__ = "nodes"
@@ -51,6 +53,14 @@ class Node(Base):
     enabled = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Scaling configuration for analog inputs
+    scale_enabled = Column(Boolean, default=False)
+    scale_min = Column(String, nullable=True)  # Engineering min value (e.g., 10)
+    scale_max = Column(String, nullable=True)  # Engineering max value (e.g., 100)
+    scale_unit = Column(String(20), nullable=True)  # Unit label (bar, °C, psi)
+    voltage_min = Column(String, default="0")  # Raw voltage at min
+    voltage_max = Column(String, default="3.3")  # Raw voltage at max
 
     # Self-referential relationship for folder structure
     children = relationship("Node", backref="parent", remote_side=[id])

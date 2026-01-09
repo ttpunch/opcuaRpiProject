@@ -6,8 +6,11 @@ from .auth import get_current_user
 import subprocess
 import os
 import asyncio
+import logging
 
 from ..context import opcua_server
+
+_logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -58,8 +61,18 @@ async def get_server_status(current_user = Depends(get_current_user)):
 async def start_server(current_user = Depends(get_current_user)):
     if opcua_server.is_running:
         return {"message": "Server is already running"}
-    # The server starts automatically with the API, but we could add manual restart logic
-    asyncio.create_task(opcua_server.start())
+    
+    # Wrap start in error handler to catch silent failures
+    async def start_with_error_handling():
+        try:
+            await opcua_server.start()
+        except Exception as e:
+            _logger.error(f"Failed to start OPC UA server: {e}")
+            import traceback
+            traceback.print_exc()
+            opcua_server.last_error = str(e)
+    
+    asyncio.create_task(start_with_error_handling())
     return {"message": "Server start initiated"}
 
 @router.post("/stop")
@@ -73,7 +86,18 @@ async def restart_server(current_user = Depends(get_current_user)):
     await opcua_server.stop()
     # Wait a tiny bit more to be sure
     await asyncio.sleep(1)
-    asyncio.create_task(opcua_server.start())
+    
+    # Wrap start in error handler to catch silent failures
+    async def start_with_error_handling():
+        try:
+            await opcua_server.start()
+        except Exception as e:
+            _logger.error(f"Failed to start OPC UA server: {e}")
+            import traceback
+            traceback.print_exc()
+            opcua_server.last_error = str(e)
+    
+    asyncio.create_task(start_with_error_handling())
     return {"message": "Server restart initiated"}
 
 @router.get("/settings")

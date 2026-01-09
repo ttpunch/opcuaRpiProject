@@ -35,6 +35,13 @@ class NodeCreate(BaseModel):
     initial_value: Optional[str] = None
     description: Optional[str] = None
     enabled: bool = True
+    # Scaling config
+    scale_enabled: bool = False
+    scale_min: Optional[str] = None
+    scale_max: Optional[str] = None
+    scale_unit: Optional[str] = None
+    voltage_min: Optional[str] = "0"
+    voltage_max: Optional[str] = "3.3"
 
 class NodeResponse(NodeCreate):
     id: int
@@ -99,20 +106,65 @@ async def delete_node(node_id: int, db: Session = Depends(get_db), current_user 
     return {"message": "Node deleted successfully"}
 
 @router.get("/live/values")
-async def get_node_values(current_user = Depends(get_current_user)):
+async def get_node_values(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     """Returns current values and error states for all active data sources."""
     results = []
+    
+    # Get all nodes from DB for scaling config lookup
+    nodes_db = {n.node_id: n for n in db.query(Node).all()}
+    
     for node_id, source in opcua_server.data_sources.items():
         # Read current value (this might be slightly delayed by the polling loop but that's fine)
-        val = await source.read()
+        raw_val = await source.read()
         error = getattr(source, "error", None)
+        
+        # Normalize ADC types to 'analog' for frontend compatibility
+        # Check both source.config.type and the actual source class type
+        source_type = source.config.get("type", "")
+        adc_device = source.config.get("adc_device", "")
+        
+        # List of all ADC-related types that should be displayed as 'analog'
+        adc_types = ("ads1115", "mcp3008", "mcp3208", "analog")
+        
+        if source_type in adc_types or adc_device in adc_types:
+            display_type = "analog"
+        else:
+            display_type = source_type
+        
+        # Get scaling config from DB
+        node_db = nodes_db.get(node_id)
+        scaled_val = raw_val
+        scale_unit = None
+        scale_enabled = False
+        
+        if node_db and node_db.scale_enabled and raw_val is not None:
+            try:
+                scale_enabled = True
+                scale_unit = node_db.scale_unit
+                v_min = float(node_db.voltage_min or 0)
+                v_max = float(node_db.voltage_max or 3.3)
+                e_min = float(node_db.scale_min or 0)
+                e_max = float(node_db.scale_max or 100)
+                
+                # Apply linear scaling: scaled = (raw - v_min) / (v_max - v_min) * (e_max - e_min) + e_min
+                if v_max != v_min:
+                    scaled_val = ((raw_val - v_min) / (v_max - v_min)) * (e_max - e_min) + e_min
+                else:
+                    scaled_val = e_min
+            except (ValueError, TypeError):
+                scaled_val = raw_val
         
         results.append({
             "node_id": node_id,
             "name": source.config.get("name", "Unknown"),
-            "value": val,
+            "value": scaled_val,
+            "raw_value": raw_val,
             "error": error,
-            "type": source.config.get("type"),
-            "pin": source.config.get("pin")
+            "type": display_type,
+            "pin": source.config.get("pin"),
+            "channel": source.config.get("channel"),
+            "adc_device": adc_device or source_type if display_type == "analog" else None,
+            "scale_enabled": scale_enabled,
+            "scale_unit": scale_unit
         })
     return results

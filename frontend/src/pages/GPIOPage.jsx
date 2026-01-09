@@ -70,7 +70,12 @@ const GPIOPage = () => {
                                         key={node.node_id}
                                         name={node.name}
                                         value={node.value}
+                                        raw_value={node.raw_value}
                                         error={node.error}
+                                        scale_enabled={node.scale_enabled}
+                                        scale_unit={node.scale_unit}
+                                        channel={node.channel}
+                                        adc_device={node.adc_device}
                                     />
                                 ))}
                             </div>

@@ -1,7 +1,15 @@
 import React from 'react';
 import { Activity, AlertTriangle } from 'lucide-react';
 
-const AnalogStatus = ({ name, value, error }) => {
+const AnalogStatus = ({ name, value, raw_value, error, scale_enabled, scale_unit, channel, adc_device }) => {
+    const displayValue = typeof value === 'number' ? value.toFixed(scale_enabled ? 2 : 3) : '--';
+    const displayUnit = scale_enabled && scale_unit ? scale_unit : 'Volts';
+    const rawDisplay = scale_enabled && typeof raw_value === 'number' ? `${raw_value.toFixed(3)} V` : null;
+
+    // Format ADC device name for display
+    const adcLabel = adc_device ? adc_device.toUpperCase() : 'ADC';
+    const channelLabel = typeof channel === 'number' ? `CH${channel}` : '';
+
     return (
         <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-surface-100 shadow-sm hover:shadow-md transition-all group">
             <div className="flex items-center gap-4">
@@ -22,16 +30,27 @@ const AnalogStatus = ({ name, value, error }) => {
                             {error}
                         </p>
                     ) : (
-                        <p className="text-[10px] text-surface-400 font-medium">Live Value</p>
+                        <div className="flex items-center gap-2">
+                            {(adcLabel || channelLabel) && (
+                                <span className="text-[9px] font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">
+                                    {adcLabel}{channelLabel ? ` ${channelLabel}` : ''}
+                                </span>
+                            )}
+                            {rawDisplay ? (
+                                <p className="text-[10px] text-surface-400 font-medium font-mono">{rawDisplay}</p>
+                            ) : (
+                                <p className="text-[10px] text-surface-400 font-medium">Live Value</p>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
 
             <div className="text-right">
                 <span className={`text-xl font-bold font-mono ${error ? 'text-surface-300' : 'text-surface-900'}`}>
-                    {typeof value === 'number' ? value.toFixed(3) : '--'}
+                    {displayValue}
                 </span>
-                <span className="text-[10px] text-surface-400 block">Volts</span>
+                <span className="text-[10px] text-surface-400 block">{displayUnit}</span>
             </div>
         </div>
     );
