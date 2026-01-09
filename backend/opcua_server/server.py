@@ -213,31 +213,24 @@ class OPCUAServer:
 
     async def remove_dynamic_node(self, node_id):
         """Removes a node dynamically from the running server"""
+        # Remove from data sources
         if node_id in self.data_sources:
             del self.data_sources[node_id]
-            
-        # TODO: Implement proper node removal in NodeManager/asyncua
-        # For now, we might just stop updating it in the poll loop.
-        # But wait, asyncua server.delete_nodes is available usually.
-        # Check NodeManager for implementation details. 
-        # Since NodeManager doesn't export a remove method yet, 
-        # and standard asyncua delete_nodes requires NodeIds, we should check `self.node_manager.nodes`
+            _logger.info(f"Removed data source for node {node_id}")
         
-        if node_id in self.node_manager.nodes:
+        # Remove from OPC UA address space
+        if self.node_manager and node_id in self.node_manager.nodes:
             try:
-                # This is a bit hacky if NodeManager doesn't support it directly, 
-                # but we can try to call delete_nodes on the server
                 ua_node = self.node_manager.nodes[node_id]
-                # self.server.delete_nodes([ua_node.nodeid]) # This might be the way, but depends on asyncua version
-                # Let's inspect asyncua capabilities later or check docs.
-                # Use a safer approach: disable it in our polling map (already done since removed from data_sources)
-                # and maybe try to remove from address space.
-                
-                # Removing from internal map
+                # Use asyncua's delete_nodes to properly remove from address space
+                await self.server.delete_nodes([ua_node], recursive=True)
                 del self.node_manager.nodes[node_id]
-                _logger.info(f"Removed node {node_id} from management.")
+                _logger.info(f"Removed node {node_id} from OPC UA address space.")
             except Exception as e:
                 _logger.error(f"Error removing node {node_id} from address space: {e}")
+                # Still remove from internal tracking even if OPC UA removal failed
+                if node_id in self.node_manager.nodes:
+                    del self.node_manager.nodes[node_id]
                 
     async def update_dynamic_node(self, node_db):
         """Updates a node dynamically"""
