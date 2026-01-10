@@ -12,6 +12,7 @@ Restart=always
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
+SupplementaryGroups=gpio i2c spi
 
 [Install]
 WantedBy=multi-user.target
