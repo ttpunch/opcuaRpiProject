@@ -11,7 +11,8 @@ from backend.opcua_server.security import SecurityManager
 router = APIRouter()
 
 # Constants
-SECRET_KEY = "your-secret-key-for-development" # Use environment variable in production
+import os
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-fallback-insecure-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -46,10 +47,27 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         raise credentials_exception
     return user
 
+# Simple in-memory rate limiter
+import time
+from collections import defaultdict
+login_attempts = defaultdict(list)
+
 @router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # Basic rate limiting: max 5 attempts per minute per username
+    now = time.time()
+    user_attempts = [t for t in login_attempts[form_data.username] if now - t < 60]
+    login_attempts[form_data.username] = user_attempts
+    
+    if len(user_attempts) >= 5:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Please try again later."
+        )
+    
     user = db.query(User).filter(User.username == form_data.username).first()
     if not user or not SecurityManager.verify_password(form_data.password, user.password_hash):
+        login_attempts[form_data.username].append(now)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",

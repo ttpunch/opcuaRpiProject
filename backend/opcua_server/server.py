@@ -81,37 +81,35 @@ class OPCUAServer:
         
         # We need to explicitly tell the server to report this specific endpoint
         # while still binding to everything.
-        try:
-            await self.server.init()
-            self.server.set_endpoint(self.endpoint)
-            self.server.set_server_name(self.name)
-            _logger.info("Server initialized successfully.")
-        except Exception as e:
-             _logger.error(f"Failed to init server: {e}")
-             raise e
-        
-        # Strict Application URI
-        await self.server.set_application_uri(app_uri)
-        
-        # Security configuration - Include Pi IP in certificate SANs
+        # Prepare security SANs
         import socket
         try:
-            # Try to get the local IP that can reach outside world
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
             local_ip = s.getsockname()[0]
             s.close()
-            ips = [local_ip, "127.0.0.1"]
+            ips = [local_ip, "127.0.0.1", socket.gethostname()]
         except:
-            ips = ["127.0.0.1"]
+            ips = ["127.0.0.1", "localhost"]
 
+        # 1. Generate and Load Certificates BEFORE anything else
         self.security_manager.generate_self_signed_cert(app_uri=app_uri, ip_addresses=ips)
         await self.server.load_certificate(self.security_manager.server_cert_path)
         await self.server.load_private_key(self.security_manager.server_key_path)
 
-        # Set security policies
+        # 2. Initialize server object
+        try:
+            await self.server.init()
+            self.server.set_endpoint(self.endpoint)
+            self.server.set_server_name(self.name)
+            await self.server.set_application_uri(app_uri)
+            _logger.info("Server initialized successfully with discovery endpoint.")
+        except Exception as e:
+             _logger.error(f"Failed to init server: {e}")
+             raise e
+
+        # Set security policies (Hardened: NoSecurity removed)
         self.server.set_security_policy([
-            ua.SecurityPolicyType.NoSecurity,
             ua.SecurityPolicyType.Basic256Sha256_SignAndEncrypt,
             ua.SecurityPolicyType.Basic256Sha256_Sign
         ])
@@ -137,7 +135,11 @@ class OPCUAServer:
         # Configure User Manager for Authentication
         try:
             self.user_manager = DBUserManager()
-            self.server.set_user_manager(self.user_manager)
+            try:
+                self.server.set_user_manager(self.user_manager)
+            except AttributeError:
+                # Fallback for some versions of asyncua
+                self.server.internal_server.set_user_manager(self.user_manager)
             
             # Check current settings to log state
             db = SessionLocal()

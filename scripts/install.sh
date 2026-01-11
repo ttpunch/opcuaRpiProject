@@ -52,9 +52,13 @@ done
 # 4. Setup project directory
 echo "📂 Setting up project directory at $PROJECT_DIR..."
 sudo mkdir -p "$PROJECT_DIR"
+sudo rm -rf "$PROJECT_DIR/certs"
+sudo mkdir -p "$PROJECT_DIR/certs"
 sudo cp -r . "$PROJECT_DIR"
 sudo chown -R root:"$GROUP_NAME" "$PROJECT_DIR"
+sudo chown -R "$USER_OPCUA":"$GROUP_NAME" "$PROJECT_DIR/certs"
 sudo chmod -R 775 "$PROJECT_DIR"
+sudo chmod 775 "$PROJECT_DIR/certs"
 
 # 5. Setup Python virtual environment
 echo "🐍 Setting up Python virtual environment..."
@@ -90,9 +94,18 @@ sudo "$PROJECT_DIR/venv/bin/python" -m scripts.seed_db
 echo "🔐 Finalizing file permissions..."
 sudo chown -R root:"$GROUP_NAME" "$PROJECT_DIR"
 sudo chmod -R 775 "$PROJECT_DIR"
+
+# Generate JWT Secret if it doesn't exist
+if [ ! -f "$PROJECT_DIR/.env" ] || ! grep -q "JWT_SECRET_KEY" "$PROJECT_DIR/.env"; then
+    echo "🔑 Generating secure JWT secret..."
+    JWT_SECRET=$(openssl rand -hex 32)
+    echo "JWT_SECRET_KEY=$JWT_SECRET" | sudo tee -a "$PROJECT_DIR/.env" > /dev/null
+fi
+
 # Ensure database and its folder are specifically writable by the group
 sudo chmod 775 "$PROJECT_DIR/backend/database"
 sudo chmod 664 "$PROJECT_DIR/backend/database/opcua_server.db" || true
+chmod +x scripts/*.sh
 
 # 10. Configure Firewall (UFW)
 echo "🛡️ Configuring firewall..."
@@ -111,6 +124,7 @@ sudo systemctl enable opcua
 sudo systemctl stop opcua-server opcua-api 2>/dev/null || true
 sudo systemctl disable opcua-server opcua-api 2>/dev/null || true
 sudo systemctl restart opcua
+sudo ./scripts/harden.sh
 
 # 12. Nginx setup
 echo "🌐 Configuring Nginx..."

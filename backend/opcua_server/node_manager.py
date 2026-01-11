@@ -74,7 +74,7 @@ class NodeManager:
             # The previous set_attribute_value call was broken and redundant as initial value is set in add_variable
             pass
             # asyncua 1.x uses write handlers like this:
-            node.set_modelling_rule(True) # Ensure it's treated as a real object if needed
+            await node.set_modelling_rule(True) # Ensure it's treated as a real object if needed
             
         self.nodes[node_id_str] = node
         self.nodes[node_id_str] = node

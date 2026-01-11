@@ -12,18 +12,29 @@ logging.basicConfig(level=logging.INFO)
 _logger = logging.getLogger(__name__)
 
 class SecurityManager:
-    def __init__(self, cert_dir="certs"):
-        self.cert_dir = cert_dir
+    def __init__(self, cert_dir=None):
+        # Use absolute path to avoid "phantom folder" confusion
+        if cert_dir is None:
+            if os.path.exists("/opt/pi-opcua-server"):
+                self.cert_dir = "/opt/pi-opcua-server/certs"
+            else:
+                self.cert_dir = os.path.abspath("certs")
+        else:
+            self.cert_dir = cert_dir
+            
         if not os.path.exists(self.cert_dir):
-            os.makedirs(self.cert_dir)
+            os.makedirs(self.cert_dir, exist_ok=True)
         
-        self.server_cert_path = os.path.join(self.cert_dir, "server_cert.pem")
+        self.server_cert_path = os.path.join(self.cert_dir, "server_cert.der")
         self.server_key_path = os.path.join(self.cert_dir, "server_key.pem")
 
     def generate_self_signed_cert(self, common_name="RPi-OPCUA-Server", app_uri="urn:raspberry:opcua:server", ip_addresses=None):
         if os.path.exists(self.server_cert_path) and os.path.exists(self.server_key_path):
-            _logger.info("Certificates already exist. Skipping generation.")
-            return True
+            if os.path.getsize(self.server_cert_path) > 0 and os.path.getsize(self.server_key_path) > 0:
+                _logger.info("Certificates already exist and are valid. Skipping generation.")
+                return True
+            else:
+                _logger.warning("Existing certificates seem invalid or empty. Regenerating...")
 
         _logger.info("Generating self-signed certificate...")
         
@@ -46,8 +57,14 @@ class SecurityManager:
             x509.UniformResourceIdentifier(app_uri)
         ]
         if ip_addresses:
-            for ip in ip_addresses:
-                sans.append(x509.IPAddress(ipaddress.ip_address(ip)))
+            for addr in ip_addresses:
+                try:
+                    # Check if it's a valid IP
+                    ip_obj = ipaddress.ip_address(addr)
+                    sans.append(x509.IPAddress(ip_obj))
+                except ValueError:
+                    # If not an IP, treat as a DNS name (hostname)
+                    sans.append(x509.DNSName(addr))
 
         cert_builder = x509.CertificateBuilder().subject_name(
             subject
@@ -61,6 +78,9 @@ class SecurityManager:
             datetime.utcnow()
         ).not_valid_after(
             datetime.utcnow() + timedelta(days=365)
+        ).add_extension(
+            x509.BasicConstraints(ca=False, path_length=None),
+            critical=True,
         ).add_extension(
             x509.SubjectAlternativeName(sans),
             critical=False,
@@ -87,7 +107,7 @@ class SecurityManager:
 
         cert = cert_builder.sign(key, hashes.SHA256())
 
-        # Save private key
+        # Save private key (PEM format is standard for keys)
         with open(self.server_key_path, "wb") as f:
             f.write(key.private_bytes(
                 encoding=serialization.Encoding.PEM,
@@ -95,11 +115,11 @@ class SecurityManager:
                 encryption_algorithm=serialization.NoEncryption(),
             ))
 
-        # Save certificate
+        # Save certificate (DER format is standard for OPC UA binary protocol)
         with open(self.server_cert_path, "wb") as f:
-            f.write(cert.public_bytes(serialization.Encoding.PEM))
+            f.write(cert.public_bytes(serialization.Encoding.DER))
 
-        _logger.info(f"Certificates generated and saved to {self.cert_dir}")
+        _logger.info(f"Certificates generated (Cert: DER, Key: PEM) and saved to {self.cert_dir}")
         return True
 
     @staticmethod
