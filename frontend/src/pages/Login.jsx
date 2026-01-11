@@ -117,12 +117,11 @@ const Login = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center justify-start px-1">
                         <label className="flex items-center gap-2 cursor-pointer group">
                             <input type="checkbox" className="w-5 h-5 rounded border-surface-200 text-primary-600 focus:ring-primary-500 cursor-pointer" />
                             <span className="text-sm text-surface-500 group-hover:text-surface-700 transition-colors">Keep me signed in</span>
                         </label>
-                        <button type="button" className="text-sm font-bold text-primary-600 hover:text-primary-700 transition-colors">Forgot Password?</button>
                     </div>
 
                     <button
@@ -141,7 +140,11 @@ const Login = () => {
                     </button>
                 </form>
 
-                {/* Copyright footer removed */}
+                <div className="text-center pt-6 pb-2 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
+                    <p className="text-xs font-medium text-surface-400/60 uppercase tracking-widest font-mono">
+                        &copy; Vinod Kumar, WEX/CNC, BHEL Haridwar
+                    </p>
+                </div>
             </div>
 
             <style dangerouslySetInnerHTML={{
