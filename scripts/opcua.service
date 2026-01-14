@@ -1,0 +1,17 @@
+[Unit]
+Description=RPi OPC UA Unified Service (API + Server)
+After=network.target
+
+[Service]
+Type=simple
+User=opcua
+Group=opcua-group
+WorkingDirectory=/opt/pi-opcua-server
+EnvironmentFile=/opt/pi-opcua-server/.env
+ExecStart=/opt/pi-opcua-server/venv/bin/uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
+Restart=always
+RestartSec=10
+SupplementaryGroups=gpio i2c spi
+
+[Install]
+WantedBy=multi-user.target

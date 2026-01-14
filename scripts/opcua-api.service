@@ -1,0 +1,16 @@
+[Unit]
+Description=OPC UA Management API
+After=network.target opcua-server.service
+
+[Service]
+Type=simple
+User=fastapi
+Group=fastapi
+WorkingDirectory=/opt/pi-opcua-server
+ExecStart=/opt/pi-opcua-server/venv/bin/uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=10
+SupplementaryGroups=gpio i2c spi
+
+[Install]
+WantedBy=multi-user.target
